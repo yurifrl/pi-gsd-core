@@ -131,17 +131,22 @@ The projection layer (`scripts/lib/project.mjs`) is the only place upstream cont
 - **skills**: injects the `<gsd_runtime_cli>` block (the authoritative CLI pointer) before the first structural marker;
 - **agents**: rebuilds frontmatter (host-native `tools:` list, `spawns: "*"`, no `color:`), and appends the omp orchestration preamble (+ executor protocol for `gsd-executor`).
 
+Deliberately **not** rewritten (functional on both hosts): the embedded
+shim probe chains (self-probing shell with fallbacks, one of which resolves our
+`~/.gsd` link), project-local `.claude/worktrees/` scratch paths, upstream
+layout-detection tables, `.claudeignore` mentions, and the Claude-style
+`allowed-tools` / `argument-hint` skill frontmatter keys (inert metadata the
+hosts ignore, kept for clean upstream diffs).
+
 The runtime wiring exists so the *vendored* content never hardcodes an install location: every projected file points at `~/.gsd`, and `extensions/gsd-core.ts` makes `~/.gsd` true at load — engine symlink, launcher script, `GSD_*` env exports. Upstream's own fallback chain (`${CLAUDE_CONFIG_DIR:-~/.gsd}/gsd-core`) probes exactly that path, so the vendored skills and the engine agree without rewriting the engine.
 
 Adapter dispatch is belt-and-braces: omp loads *our* adapter (the upstream `pi/gsd.cjs` works there too, but its Claude-era assumptions make ours the better fit); pi loads the *upstream* adapter (battle-tested, maintained upstream). If the primary throws, the entry logs and loads the other one — the engine CLI is host-agnostic.
-
 ## Development
 
 ```bash
 git clone https://github.com/yurifrl/pi-gsd-core && cd pi-gsd-core
 bun install            # installs @opengsd/gsd-core (the only runtime dep)
-
-bun test               # node --test — 32 tests: projection, runtime, sync, e2e
+bun test               # node --test — 34 tests: projection, runtime, sync, e2e
 bun run lint           # node --check on all .mjs
 bun run update:check   # dry-run sync against the live registry
 ```
