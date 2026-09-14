@@ -1,0 +1,14 @@
+{
+  "name": "@opengsd/gsd-core",
+  "version": "1.13.0",
+  "source": "npm",
+  "tarball": "https://orbit-flutter-af768sf2xs.fbr.land/npm/npm-proxy/@opengsd/gsd-core/-/gsd-core-1.13.0.tgz",
+  "integrity": "sha512-UHt5uG9wl13ZWZyAYuHhh0yPBNHxyu/UN+NJJQC/LwItoKBUphd9tqitHy4E4iUH+7qD6iv4AJGRjDZ0jfu3KQ==",
+  "commit": null,
+  "ref": null,
+  "engineDependency": "1.13.0",
+  "skills": 72,
+  "agents": 35,
+  "syncedAt": "2026-09-14T22:27:25.990Z",
+  "syncedBy": "sync-gsd-core.mjs"
+}
