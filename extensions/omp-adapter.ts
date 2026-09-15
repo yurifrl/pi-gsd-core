@@ -18,12 +18,12 @@
  * from the package manifest (`skills`) and the package `agents/` directory.
  */
 
+import path from "node:path";
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import path from "node:path";
+import { nodeInterpreterOf, type HostRuntime } from "./lib/runtime.ts";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import type { HostRuntime } from "./lib/runtime.ts";
 
 /** Curated top-level command families, from gsd-tools.cjs TOP_LEVEL_USAGE. */
 const GSD_COMMAND_FAMILIES = Object.freeze([
@@ -114,7 +114,7 @@ export default function registerOmpAdapter(pi: ExtensionAPI, options: OmpAdapter
     if (input.family === "--help" || input.family === "-h") argv.push(input.family);
     else argv.push(input.family, input.subcommand || "help", ...input.args);
     try {
-      const result = spawnSync(process.execPath, argv, {
+      const result = spawnSync(nodeInterpreterOf(process.execPath), argv, {
         encoding: "utf8",
         cwd,
         windowsHide: true,
@@ -225,8 +225,7 @@ export default function registerOmpAdapter(pi: ExtensionAPI, options: OmpAdapter
     const hookPath = path.join(hooksDir, hookFile);
     try {
       if (!existsSync(hookPath)) return;
-      spawnSync(process.execPath, [hookPath], {
-        input: JSON.stringify({ hook_event_name: hookFile.replace(/\.js$/, ""), ...payload }),
+      spawnSync(nodeInterpreterOf(process.execPath), [hookPath], {
         encoding: "utf8",
         timeout: HOOK_TIMEOUT_MS,
         cwd: opts.cwd || process.cwd(),
