@@ -1,6 +1,6 @@
 {
   "name": "pi-gsd-core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "GSD (Get Shit Done) for pi and Oh My Pi — vendored skills and agents synced from @opengsd/gsd-core, one dual-host extension, self-maintaining runtime wiring",
   "license": "MIT",
   "author": "yurifrl",

@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] — 2026-09-15
+
+### Fixed
+
+- Update check no longer blocks the host: the registry query now runs as an unref'd, fire-and-forget child 30s after session start (was a synchronous `npm view` inside `session_start`, freezing the TUI's event loop for its whole duration). Respects `PI_OFFLINE=1`.
+
+[0.1.1]: https://github.com/yurifrl/pi-gsd-core/releases/tag/v0.1.1
+
 ## [0.1.0] — 2026-09-14
 
 Initial release.

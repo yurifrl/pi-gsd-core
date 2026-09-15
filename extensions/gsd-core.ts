@@ -38,7 +38,7 @@ import {
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import registerOmpAdapter from "./omp-adapter.ts";
 import {
@@ -86,7 +86,12 @@ export default function main(pi: ExtensionApiLike) {
   loadAdapter(pi, { host, engineRoot });
 
   pi.on("session_start", (event: unknown, ctx?: ExtensionContextLike) => {
-    void checkForEngineUpdate({ ctx });
+    // Deferred and fire-and-forget: the session-start path must never block
+    // the host's event loop (a TUI waiting on it would feel frozen).
+    const timer = setTimeout(() => {
+      void checkForEngineUpdate({ ctx });
+    }, UPDATE_CHECK_DELAY_MS);
+    timer.unref?.();
     return event;
   });
 }
@@ -231,6 +236,7 @@ function loadAdapter(pi: ExtensionApiLike, { host, engineRoot }: { host: HostRun
 // ── update check ────────────────────────────────────────────────────────────
 
 const UPDATE_CHECK_DEFAULT_HOURS = 24;
+const UPDATE_CHECK_DELAY_MS = 30_000;
 const UPDATE_CHECK_TIMEOUT_MS = 15_000;
 
 interface UpdateCheckState {
@@ -242,11 +248,15 @@ interface UpdateCheckState {
  * Throttled registry check: compares the vendored pin against the latest
  * `@opengsd/gsd-core` the configured registry knows about. Users update the
  * package (hosts auto-update git packages); maintainers run `bun run update`
- * in the pi-gsd-core checkout. Fails silently on every error path. Disable
- * with PI_GSD_CORE_UPDATE_CHECK=0, or tune the interval with a number of hours.
+ * in the pi-gsd-core checkout. Never touches the event loop synchronously —
+ * the registry query runs in an unref'd child, so a host can exit without
+ * waiting for it. Fails silently on every error path. Disable with
+ * PI_GSD_CORE_UPDATE_CHECK=0 (or PI_OFFLINE=1), or tune the interval with a
+ * number of hours.
  */
 async function checkForEngineUpdate({ ctx }: { ctx?: ExtensionContextLike }) {
   try {
+    if (/^(1|true|yes)$/i.test(process.env.PI_OFFLINE ?? "")) return;
     const configured = process.env.PI_GSD_CORE_UPDATE_CHECK ?? "";
     if (KILL_SWITCH_RE.test(configured)) return;
     const hours = configured !== "" && Number.isFinite(Number(configured)) ? Number(configured) : UPDATE_CHECK_DEFAULT_HOURS;
@@ -256,13 +266,8 @@ async function checkForEngineUpdate({ ctx }: { ctx?: ExtensionContextLike }) {
     const state = safeParseJson<UpdateCheckState>(readFileSyncSafe(stateFile)) ?? {};
     if (state.checkedAt && Date.now() - state.checkedAt < hours * 3_600_000) return;
 
-    const result = spawnSync("npm", ["view", "@opengsd/gsd-core@latest", "version", "--json"], {
-      encoding: "utf8",
-      timeout: UPDATE_CHECK_TIMEOUT_MS,
-      windowsHide: true,
-    });
-    const latest = safeParseJson<string>(result.stdout?.trim());
-    if (typeof latest !== "string" || !latest) return;
+    const latest = await registryEngineVersion();
+    if (!latest) return;
     writeFileSync(stateFile, `${JSON.stringify({ checkedAt: Date.now(), latest } satisfies UpdateCheckState, null, 2)}\n`);
 
     const pin = readVendorPin();
@@ -274,6 +279,32 @@ async function checkForEngineUpdate({ ctx }: { ctx?: ExtensionContextLike }) {
   } catch {
     /* informational only — never surface check failures */
   }
+}
+
+/** Spawn the registry query detached from the event loop; resolves null on any failure. */
+function registryEngineVersion(): Promise<string | null> {
+  const { promise, resolve } = Promise.withResolvers<string | null>();
+  try {
+    const child = execFile(
+      "npm",
+      ["view", "@opengsd/gsd-core@latest", "version", "--json"],
+      { timeout: UPDATE_CHECK_TIMEOUT_MS, windowsHide: true },
+      (error, stdout) => {
+        const latest = error ? null : safeParseJson<string>(String(stdout).trim());
+        resolve(typeof latest === "string" && latest ? latest : null);
+      },
+    );
+    // Release every event-loop handle the child holds so an exiting host
+    // never waits on a version check. Re-resolves are no-ops.
+    child.unref();
+    child.stdout?.unref?.();
+    child.stderr?.unref?.();
+    child.stdin?.unref?.();
+    child.on("error", () => resolve(null));
+  } catch {
+    resolve(null);
+  }
+  return promise;
 }
 
 // ── small fs/json helpers ───────────────────────────────────────────────────
