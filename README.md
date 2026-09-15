@@ -25,9 +25,9 @@ Requirements: Node ≥ 22. One install per host — the package self-configures 
 ### pi
 
 ```bash
-pi install github:yurifrl/pi-gsd-core
+pi install git:github.com/yurifrl/pi-gsd-core
 # or pin a tag:
-pi install github:yurifrl/pi-gsd-core#v0.1.1
+pi install git:github.com/yurifrl/pi-gsd-core#v0.1.0
 ```
 
 Restart pi. The extension:
@@ -39,7 +39,7 @@ Restart pi. The extension:
 ### omp
 
 ```bash
-npm install --global https://github.com/yurifrl/pi-gsd-core/archive/refs/tags/v0.1.1.tar.gz
+npm install --global https://github.com/yurifrl/pi-gsd-core/archive/refs/tags/v0.1.0.tar.gz
 ```
 
 Then register the package in `~/.omp/agent/settings.json` (or the project-level equivalent):
